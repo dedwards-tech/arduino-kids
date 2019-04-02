@@ -73,8 +73,9 @@
 #define SOUND_THRESHOLD_LOW   50
 
 // Library Variables (global)
-rgb_lcd   lcd;
-
+rgb_lcd     lcd;
+char        lcd_buff[17]; 
+char        uart_buff[80]; 
 
 void setup() 
 {
@@ -173,11 +174,21 @@ void loop()
     curr_temp    = read_temperature();
 
     // Dump values to serial port then delay
-    Serial.println(sprintf("Temperature:      %d F", (int)curr_temp));
-    Serial.println(sprintf("Rotary Position:  %d",   rotary_value));
-    Serial.println(sprintf("Sound Value:      %d",   sound_value));
-    Serial.println(sprintf("Light Value:      %d",   light_value));
-    Serial.println(sprintf("Button Value:     %d",   button_value));
+    snprintf(uart_buff, sizeof(uart_buff)-1, "Temp: %d(F)", (int)curr_temp);
+    Serial.println(uart_buff);
+
+    snprintf(uart_buff, sizeof(uart_buff)-1, "Rotary: %d",  rotary_value);
+    Serial.println(uart_buff);
+    lcd.print(uart_buff);
+
+    snprintf(uart_buff, sizeof(uart_buff)-1, "Sound: %d",   sound_value);
+    Serial.println(uart_buff);
+
+    snprintf(uart_buff, sizeof(uart_buff)-1, "Light: %d",   light_value);
+    Serial.println(uart_buff);
+
+    snprintf(uart_buff, sizeof(uart_buff)-1, "Button: %d",  button_value);
+    Serial.println(uart_buff);
 
     // change to green after we enter loop()
     //lcd.setRGB(0, 255, 0);
