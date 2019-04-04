@@ -32,6 +32,6 @@ You will need the following to run this code:
 1. 9V Battery
 1. USB 2.0 Printer Cable
 
-## Connections
+## System Diagram
 
-(INSERT PHOTO OR DRAWING HERE)
+![System Diagram](arduino-kids-overview.png?raw=true "Arduino Kids System Overview")
