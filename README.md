@@ -27,8 +27,8 @@ Use the LCD display with the rotary sensor to choose from a list of activities, 
 ## What is Needed?
 
 You will need the following to run this code:
-1. Arduino Uno CPU (URL: ???)
-1. Grove Starter Kit from Seeed (URL: ???)
+1. Arduino Uno CPU (URL: https://www.arduino.cc/en/Guide/ArduinoUno)
+1. Grove Starter Kit from Seeed (http://wiki.seeedstudio.com/Grove_Starter_Kit_v3/)
 1. 9V Battery
 1. USB 2.0 Printer Cable
 
