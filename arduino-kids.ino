@@ -45,6 +45,7 @@
 #define CFG_PIN_LIGHT_SENSOR        A1  // Grove Light  A1
 #define CFG_PIN_LED                 D3  // Grove LED    D3 (PWM reqd)
 #define CFG_PIN_TOUCH_SENSOR        D4  // Grove Touch  D4
+#define CFG_INIT_WAIT_TIME         100  // Amount of time to wait after initializing a sensor.
 
 // Light Sensor "INPUT" Parameters - Light levels
 #define LIGHT_THRESHOLD_HIGH       500
@@ -57,9 +58,6 @@
 #define LED_ON_HALF                128
 #define LED_OFF                      0
 
-// Touch Sensor "INPUT" Parameters - On / Off state
-#define TOUCH_
-
 // Rotary and Color LCD Display Parameters
 #define LCD_COLOR_VALUES             9
 #define LCD_NUM_LINES                2
@@ -67,7 +65,7 @@
 #define ROTARY_MAX_VALUE           700
 
 // Rotary Sensor "INPUT / OUTPUT" Lookup Table
-unsigned short color_lookup[ROTARY_LOOKUP_STATES] =
+unsigned short color_lookup[LCD_COLOR_VALUES] =
 {
    0xFFFFFF,
    0x0000FF,
@@ -81,12 +79,16 @@ unsigned short color_lookup[ROTARY_LOOKUP_STATES] =
 };
 
 // Library Variables (global)
-rgb_lcd            lcd;
 unsigned long int  lcd_color;
 unsigned short     touch_count;
 unsigned short     touch_value;
 unsigned short     light_level;
 unsigned short     rotary_position;
+bool               inputs_changed;
+long int           loop_count;
+
+// RGB Color LCD Display Device
+rgb_lcd            lcd_hw;
 
 // Allocate memory for LCD display text
 char               lcd_text[LCD_NUM_LINES][LCD_LINE_CHARACTERS + 1]; 
@@ -100,113 +102,145 @@ void setup()
 {
     // Arduino Serial Port - for debug messages
     Serial.begin(CFG_SERIAL_SPEED);
-    Serial.println("Initializing...");
+    Serial.println("Setting up hardware devices...");
     delay(500);
 
     // Grove LED - Digital (turn on LED at init)
     Serial.println(" -> setting up LED...");
     pinMode(CFG_PIN_LED, OUTPUT);
-    delay(200);
+    delay(CFG_INIT_WAIT_TIME);
     analogWrite(CFG_PIN_LED, LED_ON_HALF);
 
     // Grove RGB Backlit LCD
     Serial.println(" -> setting up the LCD display...");
-    lcd.begin(16, 2);
-    delay(200);
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    delay(200);
-
+    lcd_hw.begin(16, 2);
+    delay(CFG_INIT_WAIT_TIME);
+    lcd_hw.clear();
+    lcd_hw.setCursor(0, 0);
+ 
     // Grove Rotary Angle Sensor - Analog
     Serial.println(" -> setting up the Rotary Angle Sensor...");
     pinMode(CFG_PIN_ROTARY_SENSOR, INPUT);
-    delay(200);
+    delay(CFG_INIT_WAIT_TIME);
     rotary_position = analogRead(CFG_PIN_ROTARY_SENSOR);
     
     // Grove LED Light Sensor - Analog
     Serial.println(" -> setting up the Light Sensor...");
     pinMode(CFG_PIN_LIGHT_SENSOR, INPUT);
-    delay(200);
+    delay(CFG_INIT_WAIT_TIME);
     light_level = analogRead(CFG_PIN_LIGHT_SENSOR);
 
     // Grove Touch Sensor - Digital
     Serial.println(" -> setting up the Touch Sensor...");
     pinMode(CFG_PIN_TOUCN_SENSOR, INPUT);
-    delay(200);
+    delay(CFG_INIT_WAIT_TIME);
     touch_count = 0;
 
     // end of setup
-    Serial.println("-> init done");
+    Serial.println("-> hardware setup complete.");
     analogWrite(CFG_PIN_LED, LED_OFF);
     delay(500);
+
+    // tell the main loop to send current sensor values to
+    // the display.
+    inputs_changed = true;
+    loop_count     = 0;
 }
 
 void read_sensors()
 {
-int ii;
-int rotary_last_position = rotary_position;
-int light_last_level     = light_level;
-int touch_last_value     = touch_value;
+    int ii;
+    int rotary_curr = 0;
+    int light_curr  = 0;
+    int touch_curr  = 0;
 
+    if (loop_count % 100 == 99)
+    {
+        // every 99 times we read sensors, send a message to the serial port
+        // so we know the computer chip is still running.
+        snprintf(uart_buff, sizeof(uart_buff)-1, "sampling input sensors... (loop %d)", loop_count);
+        Serial.println(uart_buff);
+    }
+
+    // take a sample of values 3 times every 1 milli-second
     for (ii = 0; ii < 3; ii++)
     {
         // take a single sample of each sensor
-        rotary_last_value += analogRead(CFG_PIN_ROTARY_SENSOR);
-        light_last_value  += analogRead(CFG_PIN_LIGHT_SENSOR);
-        touch_last_value  += digitalRead(CFG_PIN_TOUCH_SENSOR);
-        
+        rotary_curr  += analogRead(CFG_PIN_ROTARY_SENSOR);
+        light_curr   += analogRead(CFG_PIN_LIGHT_SENSOR);
+        touch_curr   += digitalRead(CFG_PIN_TOUCH_SENSOR);
         delay(1);
     }
 
-    // average the 4 samples (1 from the last reading)
-    rotary_last_value >>= 2;
-    light_last_value  >>= 2;
-    touch_last_value  >>= 2;
+    // average the 3 samples
+    rotary_curr  /= 3;
+    light_curr   /= light_curr  / 3;
+    touch_curr   /= touch_curr  / 3;
     
+    // Check sensors for a change from the current values
+    inputs_changed  = false;
+    if (rotary_curr != rotary_position)
+    {
+        rotary_position = rotary_curr;
+        inputs_changed  = true;
+    }
+
+    if (light_curr != light_level)
+    {
+        light_level    = light_curr;
+        inputs_changed = true;
+    }
+
+    if (touch_curr != touch_value)
+    {
+        touch_value    = touch_curr;
+        inputs_changed = true;
+    }
 }
 
 void update_display()
 {
+    if (inputs_changed)
+    {
+        // based on the rotary position, determine which color value in
+        // the color lookup table we will use for the LCD display color.
+        color_index = rotary_value / (ROTARY_MAX_VALUE / LCD_COLOR_VALUES;
+        color       = color_lookup[color_index]
+        color_RED   = (color >> 16) & 0xFF;
+        color_GREEN = (color >> 8) & 0xFF;
+        color_BLUE  = color & 0xFF;
+
+        // based on the light level, adjust the hue of the LCD display
+        // color values, which "should" give the appearance of brightness
+        // adjustment
+        if (light_level > LIGHT_THRESHOLD_HIGH) 
+        { 
+            light_adjust = 0;
+        } else if (light_level > 300) 
+        { 
+            light_adjust = 0x22;
+        } else 
+        { 
+            light_adjust = 0x44;
+        }
+
+        // program the LCD Display with the current color and adjust
+        // for brightness by the light sensor adjustment value.
+        lcd_hw.setRGB(color_RED - light_adjust, color_GREEN - light_adjust, color_BLUE - light_adjust);
+
+        // Update the text messages we will display on the LCD
+        lcd.print("testing 1...2...3...");
+        inputs_changed = false;
+    }
 }
 
 void loop() 
 {
-    int   rotary_value, light_value, sound_value, button_value;
-    float curr_temp;
-
-    // Take a sample of our input devices
-    rotary_value = analogRead(CFG_PIN_ROTARY_SENSOR);
-    light_value  = analogRead(CFG_PIN_LIGHT_SENSOR);
-    sound_value  = analogRead(CFG_PIN_SOUND_SENSOR);
-    button_value = digitalRead(CFG_PIN_BUTTON);
-
-    curr_temp    = read_temperature();
-
-    // Dump values to serial port then delay
-    snprintf(uart_buff, sizeof(uart_buff)-1, "Temp: %d(F)", (int)curr_temp);
-    Serial.println(uart_buff);
-
-    snprintf(uart_buff, sizeof(uart_buff)-1, "Rotary: %d",  rotary_value);
-    Serial.println(uart_buff);
-    lcd.print(uart_buff);
-
-    snprintf(uart_buff, sizeof(uart_buff)-1, "Sound: %d",   sound_value);
-    Serial.println(uart_buff);
-
-    snprintf(uart_buff, sizeof(uart_buff)-1, "Light: %d",   light_value);
-    Serial.println(uart_buff);
-
-    snprintf(uart_buff, sizeof(uart_buff)-1, "Button: %d",  button_value);
-    Serial.println(uart_buff);
-
-    // change to green after we enter loop()
-    //lcd.setRGB(0, 255, 0);
-    //delay(50);
+    read_sensors();
     
-    // Print a message to the LCD.
-    //lcd.print("hello, world!");
+    update_display();
 
-    delay(10000);
+    delay(50);
 }
 
 /*********************************************************************************************************
