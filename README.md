@@ -40,3 +40,11 @@ You will need the following to run this code:
 ## System Diagram
 
 ![System Diagram](arduino-kids-overview.png?raw=true "Arduino Kids System Overview")
+
+Device Connections:
+* D2: LED Socket Kit
+* D3: Touch Sensor
+* A0: Rotary Angle Sensor
+* A1: Light Sensor
+* I2C: LCD RGB Backlight Display
+
