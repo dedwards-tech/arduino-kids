@@ -117,9 +117,7 @@ char              lcd_text[LCD_NUM_LINES][LCD_LINE_CHARACTERS + 1];
 char              text_buffer[80];                   
 
 void setup() 
-{
-    total_run_time = 0;
-    
+{    
     // Arduino Serial Port - for debug messages
     Serial.begin(CFG_SERIAL_SPEED);
     Serial.println("Setting up hardware devices...");
@@ -136,13 +134,10 @@ void setup()
     lcd_hw.begin(16, 2);
     delay(CFG_INIT_WAIT_TIME);
     lcd_hw.clear();
-    color_RED   = 0;
-    color_GREEN = 0;
-    color_BLUE  = 0;
 
     // Put something on the display
-    snprintf(lcd_text[0], LCD_LINE_CHARACTERS, "!!ARDI ARDUINO!!");
-    snprintf(lcd_text[1], LCD_LINE_CHARACTERS, "**INITIALIZING**");
+    snprintf(lcd_text[0], LCD_LINE_CHARACTERS + 1, "!!ARDI ARDUINO!!");
+    snprintf(lcd_text[1], LCD_LINE_CHARACTERS + 1, "**INITIALIZING**");
     lcd_update_display();
  
     // Grove Rotary Angle Sensor - Analog
@@ -162,13 +157,20 @@ void setup()
     pinMode(CFG_PIN_TOUCH_SENSOR, INPUT);
     delay(CFG_INIT_WAIT_TIME);
     touch_count = 0;
-    delay(500);
+
+    // Actual init complete time
+    snprintf(text_buffer, 80, " + init time: %d(ms)", millis());
+    Serial.println(text_buffer);
+    digitalWrite(CFG_PIN_LED, LED_OFF);
+
+    // Delay so there's some indication of initialization doing something
+    delay(5000);
 
     // Initialize timed variables
     update_uart_time  = 0;
     update_count_time = 0;
-    update_text_time  = 0UL - 1UL;
-    total_run_time    = millis() - total_run_time;  
+    total_run_time    = 0;  
+    update_text_time  = 10000UL;
     // end of setup
 
     Serial.println(" * hardware setup complete");
@@ -331,24 +333,24 @@ void loop()
     update_uart_time += loop_time;
     update_text_time += loop_time;
 
-    // update the LCD text display every 10000 milli-seconds (=10 seconds)
-    if (update_text_time > 10000UL)
+    // update the LCD text display periodically; 1000 milli-seconds == 1 second
+    if (update_text_time > 8000UL)
     {
         if (touch_count > TOUCH_TICKLE_COUNT)
         {
-            snprintf(lcd_text[0], LCD_LINE_CHARACTERS, "...that tickles!");
+            snprintf(lcd_text[0], LCD_LINE_CHARACTERS + 1, "...that tickles!");
         } else
         {
-            snprintf(lcd_text[0], LCD_LINE_CHARACTERS, "Hi, Ardi here!  ");
+            snprintf(lcd_text[0], LCD_LINE_CHARACTERS + 1, "Hi, Ardi here!  ");
         }
-        snprintf(lcd_text[1], LCD_LINE_CHARACTERS, "Touch: %03u      ", touch_count);
+        snprintf(lcd_text[1], LCD_LINE_CHARACTERS + 1, "Touch: %03u      ", touch_count);
         lcd_update_display();
         update_text_time = 0;
         touch_count      = 0;
     }
 
-    // update the serial port with status every 5s
-    if (update_uart_time >= 5000UL)
+    // update the serial port with status every 4s
+    if (update_uart_time >= 4000UL)
     {
         snprintf(text_buffer, sizeof(text_buffer)-1, " + Rotary: %d, Light: %d, Touch: %d, R: %02X G: %02X B: %02X", 
                                                  rotary_position, light_level, touch_value, 
