@@ -29,6 +29,11 @@ Use the LCD display with the rotary sensor to choose from a list of activities, 
 You will need the following to run this code:
 1. Arduino Uno CPU (URL: https://www.arduino.cc/en/Guide/ArduinoUno)
 1. Grove Starter Kit from Seeed (http://wiki.seeedstudio.com/Grove_Starter_Kit_v3/)
+   1. Grove Light Sensor: http://wiki.seeedstudio.com/Grove-Light_Sensor/
+   1. Grove LED Socket Kit: http://wiki.seeedstudio.com/Grove-LED_Socket_Kit/
+   1. Grove Rotary Angle Sensor: http://wiki.seeedstudio.com/Grove-Rotary_Angle_Sensor/
+   1. Grove Touch Sensor: http://wiki.seeedstudio.com/Grove-Touch_Sensor/
+   1. Grove LCD RGB Backlight: http://wiki.seeedstudio.com/Grove-LCD_RGB_Backlight/
 1. 9V Battery
 1. USB 2.0 Printer Cable
 
