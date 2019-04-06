@@ -39,43 +39,62 @@
 #include <rgb_lcd.h>
 
 
-/*** System Configuration Definitions ***/
-#define CFG_SERIAL_SPEED        115200
+// Device to Board Connections and Settings
+#define CFG_SERIAL_SPEED        115200  // Serial Port Speed
 #define CFG_PIN_ROTARY_SENSOR       A0  // Grove Rotary A0
-#define CFG_PIN_TEMP_SENSOR         A1  // Grove Temp   A2
-#define CFG_PIN_SOUND_SENSOR        A2  // Grove Sound  A3
-#define CFG_PIN_LIGHT_SENSOR        A3  // Grove Light  A1
-#define CFG_PIN_LED                  3  // Grove LED    D3
-#define CFG_PIN_BUTTON               7  // Grove Button D7
+#define CFG_PIN_LIGHT_SENSOR        A1  // Grove Light  A1
+#define CFG_PIN_LED                 D3  // Grove LED    D3 (PWM reqd)
+#define CFG_PIN_TOUCH_SENSOR        D4  // Grove Touch  D4
 
+// Light Sensor "INPUT" Parameters - Light levels
+#define LIGHT_THRESHOLD_HIGH       500
+#define LIGHT_THRESHOLD_MED        300
+#define LIGHT_THRESHOLD_LOW        150
+#define LIGHT_SENSOR_LEVELS          3
 
-/*** LED Light "OUTPUT" Values ***/
-
-// Various integer values represenging the brightness level of the LED
+// LED Light "OUTPUT" Parameters - LED brightness
 #define LED_ON_MAX                 254
 #define LED_ON_HALF                128
 #define LED_OFF                      0
 
-// Number of breath increments at each "WAIT STEP"
-#define LED_BREATH_STEP              5
+// Touch Sensor "INPUT" Parameters - On / Off state
+#define TOUCH_
 
-// Time (in milliseconds) to wait before updating LED breath value
-#define LED_BREATH_WAIT_STEP         5
+// Rotary and Color LCD Display Parameters
+#define LCD_COLOR_VALUES             9
+#define LCD_NUM_LINES                2
+#define LCD_LINE_CHARACTERS         16
+#define ROTARY_MAX_VALUE           700
 
-/*** Light Sensor "INPUT" Values ***/
-#define LIGHT_THRESHOLD_HIGH  1200  // Question: what are the range of values possible?
-#define LIGHT_THRESHOLD_MED   800
-#define LIGHT_THRESHOLD_LOW   400
-
-/*** Sound Sensor "INPUT" Values ***/
-#define SOUND_THRESHOLD_HIGH  100  // Question: what are the range of values possible?
-#define SOUND_THRESHOLD_MED   75
-#define SOUND_THRESHOLD_LOW   50
+// Rotary Sensor "INPUT / OUTPUT" Lookup Table
+unsigned short color_lookup[ROTARY_LOOKUP_STATES] =
+{
+   0xFFFFFF,
+   0x0000FF,
+   0x00FFFF,
+   0x00FF00,
+   0xFF00FF,
+   0xFFFF00,
+   0xFFFF00,
+   0xFF0000,
+   0x000000
+};
 
 // Library Variables (global)
-rgb_lcd     lcd;
-char        lcd_buff[17]; 
-char        uart_buff[80]; 
+rgb_lcd            lcd;
+unsigned long int  lcd_color;
+unsigned short     touch_count;
+unsigned short     touch_value;
+unsigned short     light_level;
+unsigned short     rotary_position;
+
+// Allocate memory for LCD display text
+char               lcd_text[LCD_NUM_LINES][LCD_LINE_CHARACTERS + 1]; 
+
+// Allocate memory for using sprintf functions to send messages to
+// the serial port for viewing in the Arduino IDE
+char               uart_buff[80]; 
+                   
 
 void setup() 
 {
@@ -85,13 +104,13 @@ void setup()
     delay(500);
 
     // Grove LED - Digital (turn on LED at init)
-    Serial.println("LED init...");
+    Serial.println(" -> setting up LED...");
     pinMode(CFG_PIN_LED, OUTPUT);
     delay(200);
     analogWrite(CFG_PIN_LED, LED_ON_HALF);
 
     // Grove RGB Backlit LCD
-    Serial.println("LCD init...");
+    Serial.println(" -> setting up the LCD display...");
     lcd.begin(16, 2);
     delay(200);
     lcd.clear();
@@ -99,24 +118,22 @@ void setup()
     delay(200);
 
     // Grove Rotary Angle Sensor - Analog
-    Serial.println("Rotary init...");
+    Serial.println(" -> setting up the Rotary Angle Sensor...");
     pinMode(CFG_PIN_ROTARY_SENSOR, INPUT);
     delay(200);
+    rotary_position = analogRead(CFG_PIN_ROTARY_SENSOR);
     
     // Grove LED Light Sensor - Analog
-    Serial.println("Light sensor init...");
+    Serial.println(" -> setting up the Light Sensor...");
     pinMode(CFG_PIN_LIGHT_SENSOR, INPUT);
     delay(200);
+    light_level = analogRead(CFG_PIN_LIGHT_SENSOR);
 
-    // Grove Sound Sensor - Analog
-    Serial.println("Sound sensor init...");
-    pinMode(CFG_PIN_SOUND_SENSOR, INPUT);
+    // Grove Touch Sensor - Digital
+    Serial.println(" -> setting up the Touch Sensor...");
+    pinMode(CFG_PIN_TOUCN_SENSOR, INPUT);
     delay(200);
-
-    // Grove Button - Digital
-    Serial.println("Button init...");
-    pinMode(CFG_PIN_BUTTON, INPUT);
-    delay(200);
+    touch_count = 0;
 
     // end of setup
     Serial.println("-> init done");
@@ -124,40 +141,32 @@ void setup()
     delay(500);
 }
 
-void led_breath()
+void read_sensors()
 {
-    // step up the brightness of the LED
-    for (int ii = 0; ii < 256; ii += LED_BREATH_STEP)
+int ii;
+int rotary_last_position = rotary_position;
+int light_last_level     = light_level;
+int touch_last_value     = touch_value;
+
+    for (ii = 0; ii < 3; ii++)
     {
-        analogWrite(CFG_PIN_LED, ii);
-        delay(LED_BREATH_WAIT_STEP);
+        // take a single sample of each sensor
+        rotary_last_value += analogRead(CFG_PIN_ROTARY_SENSOR);
+        light_last_value  += analogRead(CFG_PIN_LIGHT_SENSOR);
+        touch_last_value  += digitalRead(CFG_PIN_TOUCH_SENSOR);
+        
+        delay(1);
     }
 
-    // wait just a bit before stepping down the brightness
-    delay(100 / LED_BREATH_WAIT_STEP);
+    // average the 4 samples (1 from the last reading)
+    rotary_last_value >>= 2;
+    light_last_value  >>= 2;
+    touch_last_value  >>= 2;
     
-    for (int ii = 254; ii >= 0; ii -= LED_BREATH_STEP)
-    {
-        analogWrite(CFG_PIN_LED, ii);
-        delay(LED_BREATH_WAIT_STEP);
-    }
 }
 
-// Question: where does this "thermistor" value come from?
-#define HW_THERMISTOR_BASIS  3975.0
-
-float read_temperature()
+void update_display()
 {
-    float temperature, resistance;
-    int   sensor_value;
-
-    sensor_value = analogRead(CFG_PIN_TEMP_SENSOR);
-    resistance   = (float)((1023 - sensor_value) * 10000) / (float)(sensor_value);
-
-    // Question: is this temperature in degrees Farenhiet or Celcius?
-    temperature  = 1.0 / (log(resistance / 10000.0) / HW_THERMISTOR_BASIS + 1.0 / 298.15) - 273.15;
-
-    return(temperature);
 }
 
 void loop() 
