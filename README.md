@@ -48,3 +48,16 @@ Device Connections:
 * A1: Light Sensor
 * I2C: LCD RGB Backlight Display
 
+## Teaching Aids
+
+Sensors are a really cool capability of small embedded systems like these Arduino kits.  These sensors were chosen for very simple interaction with the computer system but also to demonstrate key capabilities that someone can do with sensors that perhaps a child hasn't thought about.
+
+The diagram below can be printed and placed on a poster board to aid in answering questions that kids may have about them and how they work.
+
+![Sensor Diagram](arduino-sensors.png?raw=true "Arduino - Grove Sensors")
+
+Color used to be an expensive option for user interaction.  With this demonstration we can show how different colors are made from the 3 primary colors, Red, Green and Blue.  Purple is an obvious choice for anyone, including kids, but how does one derive yellow, or white when these colors don't seem obvious from the 3 primary colors.
+
+The diagram below represents a small set of colors possible with the Grove LCD RBG Backlight display.  There are 3 LED lights of the primary colors inside the device. The arrangement of these LED lights allows for 256 different shades of each LED light color.  By doing the math on each color 256 x 256 x 256 = 16,777,216 color possibilities.  We chose to keep this simple and focus on color values that are between red, green and blue for a total of 8 colors where the color 000000 (normally black) means all colors off.
+
+![Colors Diagram](arduino-colors.png?raw=true "8-bit RGB Color")
